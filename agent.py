@@ -52,7 +52,14 @@ def fare_rules_gkarmaka(section: str) -> Any:
     return {"error": "No fare-rules section matches %r. Available: %s" % (section, available)}
 
 
-TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
+TONE_ADDENDUM = """
+
+If the customer is abusive, or mentions a lawyer, legal action, or suing, do this
+and nothing else: acknowledge their frustration in one short sentence, call
+escalate_to_human straight away (put what they said and what you already know in
+summary_for_human), and tell them a person will pick this up. Do not recite
+entitlements, do not offer refunds, vouchers, or rebooking, and promise nothing.
+"""                                      # ✏️ Build 4, step 4.1, intelligence goal
 EXTRA_TOOLS: List[Dict[str, Any]] = [     # ✏️ Build 2, step 2.1: schemas for the tools you add
     {
         "name": "fare_rules_gkarmaka",
@@ -114,6 +121,16 @@ def tool_results(response) -> List[Dict[str, Any]]:
     return results
 
 
+def system_blocks() -> List[Dict[str, Any]]:
+    """Speed lever: the stable prompt is cached (tools + this block); the clock
+    line changes every second, so it rides after the breakpoint, uncached."""
+    return [
+        {"type": "text", "text": SYSTEM_PROMPT + TONE_ADDENDUM,
+         "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": runtime_preamble()},
+    ]
+
+
 def run_agent(pnr: str, last_name: str, message: str) -> str:            # ✏️ Build 1, step 1.2
     """Run the tool loop until Claude stops asking for tools. Return its final text."""
     client, tracer = new_session()
@@ -123,7 +140,7 @@ def run_agent(pnr: str, last_name: str, message: str) -> str:            # ✏�
     ]
 
     response = client.messages.create(
-        model=MODEL, max_tokens=4096, system=runtime_preamble() + SYSTEM_PROMPT + TONE_ADDENDUM,
+        model=MODEL, max_tokens=4096, system=system_blocks(),
         thinking={"type": "adaptive"}, tools=tools, messages=messages,
     )
 
@@ -132,7 +149,7 @@ def run_agent(pnr: str, last_name: str, message: str) -> str:            # ✏�
         messages.append({"role": "assistant", "content": response.content})
         messages.append({"role": "user", "content": tool_results(response)})
         response = client.messages.create(
-            model=MODEL, max_tokens=4096, system=runtime_preamble() + SYSTEM_PROMPT + TONE_ADDENDUM,
+            model=MODEL, max_tokens=4096, system=system_blocks(),
             thinking={"type": "adaptive"}, tools=tools, messages=messages,
         )
         turns += 1

@@ -8,7 +8,7 @@ Number: $0.0504 per resolved contact
 Safety check: Wait for the customer confirmation before rebooking the seat
 Next: Escalate to human if no valid options
 Still broken: The seats are already available which can be booked instead of looking for next available day
-Lever: intelligence
+Lever: speed
 
 ## Priya asked
 
