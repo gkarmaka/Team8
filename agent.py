@@ -52,7 +52,13 @@ def fare_rules_gkarmaka(section: str) -> Any:
     return {"error": "No fare-rules section matches %r. Available: %s" % (section, available)}
 
 
-TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
+TONE_ADDENDUM = """
+If the customer's message is abusive or includes a threat, acknowledge their
+situation once, and escalate the case to the appropriate department for quick
+resolution. Escalate immediately when the customer uses abusive/threat
+language, before doing search_alternatives or check_policy, and never issue
+vouchers. Do not rebook as per the customer's demand.
+"""                                       # ✏️ Build 4, step 4.1, intelligence goal
 EXTRA_TOOLS: List[Dict[str, Any]] = [     # ✏️ Build 2, step 2.1: schemas for the tools you add
     {
         "name": "fare_rules_gkarmaka",
