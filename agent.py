@@ -9,21 +9,78 @@ Where you edit:   grep -n '✏' agent.py   (six marks, one per place)
 Steps and gates:  https://anthropicpartnerbasecamp.bts.com/
 """
 from __future__ import annotations
+import re
+from pathlib import Path
 from typing import Any, Dict, List
 from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
                      new_session, record_tool_result, runtime_preamble)
 
 MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human takes over.
 
-TONE_ADDENDUM = """
-If the customer's message is abusive or includes a threat, acknowledge their
-situation once, and escalate the case to the appropriate department for quick
-resolution. Escalate immediately when the customer uses abusive/threat
-language, before doing search_alternatives or check_policy, and never issue
-vouchers. Do not rebook as per the customer's demand.
-"""                                       # ✏️ Build 4, step 4.1, intelligence goal
-EXTRA_TOOLS: List[Dict[str, Any]] = []    # ✏️ Build 2, step 2.1: schemas for the tools you add
-LOCAL_TOOLS: Dict[str, Any] = {}          # ✏️ Build 2, step 2.1: the functions behind them
+FARE_RULES_PATH = Path(__file__).parent / "data" / "americas" / "fare_rules_excerpt.md"
+
+
+def fare_rules_gkarmaka(section: str) -> Any:
+    """Your own tool, step 2.1: read the Handbook excerpt off disk and return
+    the section matching a number (e.g. "6") or title words (e.g. "care while
+    you wait"), so a fare-rules question gets a quotable answer instead of a
+    guess."""
+    query = (section or "").strip().lower()
+    text = FARE_RULES_PATH.read_text(encoding="utf-8")
+
+    sections = []
+    current = None
+    for line in text.splitlines():
+        if line.startswith("### "):
+            heading = line[4:].strip()
+            match = re.match(r"^(\d+)\.\s*(.*)$", heading)
+            current = {
+                "number": match.group(1) if match else "",
+                "title": (match.group(2) if match else heading).lower(),
+                "heading": heading,
+                "lines": [],
+            }
+            sections.append(current)
+        elif current is not None:
+            current["lines"].append(line)
+
+    for candidate in sections:
+        if query == candidate["number"] or query in candidate["title"]:
+            return "### %s\n\n%s" % (candidate["heading"], "\n".join(candidate["lines"]).strip())
+
+    available = ", ".join("%s (%s)" % (s["number"], s["title"]) for s in sections)
+    return {"error": "No fare-rules section matches %r. Available: %s" % (section, available)}
+
+
+TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
+EXTRA_TOOLS: List[Dict[str, Any]] = [     # ✏️ Build 2, step 2.1: schemas for the tools you add
+    {
+        "name": "fare_rules_gkarmaka",
+        "description": (
+            "Look up Larkspur's written fare-rules and Customer Commitment "
+            "policy text: fare families (Basic/Main/Main Plus/First), what "
+            "happens when a flight is delayed/cancelled/diverted, care while "
+            "you wait, or what the chat assistant will not do itself. Use "
+            "this when the customer asks about the rules in prose, not a "
+            "computed decision for their own booking (that is check_policy's "
+            "job). Pass a section number (4-7) or a few words from its title; "
+            "matches on either."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "section": {
+                    "type": "string",
+                    "description": 'Section number, e.g. "6", or title words, e.g. "care while you wait".',
+                }
+            },
+            "required": ["section"],
+        },
+    },
+]
+LOCAL_TOOLS: Dict[str, Any] = {           # ✏️ Build 2, step 2.1: the functions behind them
+    "fare_rules_gkarmaka": fare_rules_gkarmaka,
+}
 
 
 def text_of(response) -> str:
@@ -86,7 +143,7 @@ def run_agent(pnr: str, last_name: str, message: str) -> str:            # ✏�
 def tool_list() -> List[Dict[str, Any]]:                   # ✏️ Build 2, step 2.2
     """Given. Exactly what Claude is offered on every turn; run.py --show-tools
     prints this list."""
-    return build_tools() + EXTRA_TOOLS + mcp_client.discover()
+    return build_tools() + EXTRA_TOOLS + mcp_client.tools()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -122,7 +179,7 @@ def build_tools() -> List[Dict[str, Any]]:                 # ✏️ Build 1, ste
                 "type": "object",
                 "properties": {
                     "flight_no": {"type": "string"},
-                    "date": {"type": "string", "description": "YYYY-MM-DD"},
+                    "date": {"type": "string", "description": "ISO-8601, YYYY-MM-DD"},
                 },
                 "required": ["flight_no", "date"],
             },
@@ -130,11 +187,13 @@ def build_tools() -> List[Dict[str, Any]]:                 # ✏️ Build 1, ste
         {
             "name": "search_alternatives",
             "description": (
-                "Find alternative Larkspur flights for this booking's disrupted segment. "
-                "Takes only the PNR; origin, destination, date, and cabin are derived from "
-                "the disrupted segment, not asked of you. Returns bookable options (each "
-                "with an option_id to pass to hold_seat), any options excluded for "
-                "insufficient seats, and other-cabin options if the same cabin has none."
+                "Find rebookable alternative flights for the disrupted segment on this "
+                "PNR. Re-derives origin, destination, date, cabin, and party size from the "
+                "booking itself, and excludes the disrupted flight. Returns candidate "
+                "options (each with an option_id to pass to hold_seat), any excluded "
+                "flights with the reason (e.g. insufficient seats), and other-cabin "
+                "options if the booked cabin has none. Call this before offering the "
+                "customer a rebooking choice or holding a seat."
             ),
             "input_schema": {
                 "type": "object",
