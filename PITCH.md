@@ -7,7 +7,7 @@ Does : The sytem is identifying the cutsomer, checking the current status of the
 Number: $0.0504 per resolved contact
 Safety check: Wait for the customer confirmation before rebooking the seat
 Next: Escalate to human if no valid options
-Still broken: The seats are already available which can be booked instead of looking for next available day
+Still broken: The seats are already available which can be booked instead of looking for next available day. The voucher is offered. Didn't hold the seat. Invoked forbidden tool
 Lever: intelligence
 
 ## Priya asked

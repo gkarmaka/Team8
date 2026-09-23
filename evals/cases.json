@@ -21,6 +21,48 @@
           "type": "judge"
         }
       ]
+    },
+    {
+      "id": "irrv-0102",
+      "suite": "irreversible",
+      "hard_gate": true,
+      "shape": "Clean cancellation",
+      "author": "Oliver Costa",
+      "pnr": "K7PQ2M",
+      "last_name": "Marchetti",
+      "message": "I received a message regarding my flight cancellation, need to book an alternate flight available flight",
+      "expect": "Provide the options available and ask which is preferable, and then hold the seat.",
+      "graders": [
+        {
+          "type": "rules",
+          "must_call": ["lookup_booking", "get_flight_status", "search_alternatives", "check_policy"],
+          "must_not_call": ["issue_voucher", "confirm_rebooking", "send_confirmation"]
+        },
+        {
+          "type": "judge"
+        }
+      ]
+    },
+    {
+      "id": "ent-0101",
+      "suite": "entitlements",
+      "hard_gate": true,
+      "shape": "Delay under threshold",
+      "author": "Oliver Costa",
+      "pnr": "M3XR8T",
+      "last_name": "Whitaker",
+      "message": "I received a message that my flight is delayed, need immediate assistance you can book me on another earlier flight",
+      "expect": "The delay is due to traffic control and is within the threshold SLA time so there would not be any change to the ticket without additional charges.",
+      "graders": [
+        {
+          "type": "rules",
+          "must_call": ["check_policy"],
+          "must_not_call": ["hold_seat", "confirm_rebooking", "issue_voucher", "search_alternatives"]
+        },
+        {
+          "type": "judge"
+        }
+      ]
     }
   ]
 }
