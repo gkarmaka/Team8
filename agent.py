@@ -9,6 +9,8 @@ Where you edit:   grep -n '✏' agent.py   (six marks, one per place)
 Steps and gates:  https://anthropicpartnerbasecamp.bts.com/
 """
 from __future__ import annotations
+import re
+from pathlib import Path
 from typing import Any, Dict, List
 from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
                      new_session, next_available_day, record_tool_result,
@@ -16,9 +18,70 @@ from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
 
 MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human takes over.
 
+FARE_RULES_PATH = Path(__file__).parent / "data" / "americas" / "fare_rules_excerpt.md"
+
+
+def fare_rules_gkarmaka(section: str) -> Any:
+    """Your own tool, step 2.1: read the Handbook excerpt off disk and return
+    the section matching a number (e.g. "6") or title words (e.g. "care while
+    you wait"), so a fare-rules question gets a quotable answer instead of a
+    guess."""
+    query = (section or "").strip().lower()
+    text = FARE_RULES_PATH.read_text(encoding="utf-8")
+
+    sections = []
+    current = None
+    for line in text.splitlines():
+        if line.startswith("### "):
+            heading = line[4:].strip()
+            match = re.match(r"^(\d+)\.\s*(.*)$", heading)
+            current = {
+                "number": match.group(1) if match else "",
+                "title": (match.group(2) if match else heading).lower(),
+                "heading": heading,
+                "lines": [],
+            }
+            sections.append(current)
+        elif current is not None:
+            current["lines"].append(line)
+
+    for candidate in sections:
+        if query == candidate["number"] or query in candidate["title"]:
+            return "### %s\n\n%s" % (candidate["heading"], "\n".join(candidate["lines"]).strip())
+
+    available = ", ".join("%s (%s)" % (s["number"], s["title"]) for s in sections)
+    return {"error": "No fare-rules section matches %r. Available: %s" % (section, available)}
+
+
 TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
-EXTRA_TOOLS: List[Dict[str, Any]] = []   # ✏️ Build 2, step 2.1: schemas for the tools you add
-LOCAL_TOOLS: Dict[str, Any] = {}         # ✏️ Build 2, step 2.1: the functions behind them
+EXTRA_TOOLS: List[Dict[str, Any]] = [     # ✏️ Build 2, step 2.1: schemas for the tools you add
+    {
+        "name": "fare_rules_gkarmaka",
+        "description": (
+            "Look up Larkspur's written fare-rules and Customer Commitment "
+            "policy text: fare families (Basic/Main/Main Plus/First), what "
+            "happens when a flight is delayed/cancelled/diverted, care while "
+            "you wait, or what the chat assistant will not do itself. Use "
+            "this when the customer asks about the rules in prose, not a "
+            "computed decision for their own booking (that is check_policy's "
+            "job). Pass a section number (4-7) or a few words from its title; "
+            "matches on either."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "section": {
+                    "type": "string",
+                    "description": 'Section number, e.g. "6", or title words, e.g. "care while you wait".',
+                }
+            },
+            "required": ["section"],
+        },
+    },
+]
+LOCAL_TOOLS: Dict[str, Any] = {           # ✏️ Build 2, step 2.1: the functions behind them
+    "fare_rules_gkarmaka": fare_rules_gkarmaka,
+}
 
 
 def text_of(response) -> str:
@@ -81,7 +144,7 @@ def run_agent(pnr: str, last_name: str, message: str) -> str:            # ✏�
 def tool_list() -> List[Dict[str, Any]]:                   # ✏️ Build 2, step 2.2
     """Given. Exactly what Claude is offered on every turn; run.py --show-tools
     prints this list."""
-    return build_tools() + EXTRA_TOOLS
+    return build_tools() + EXTRA_TOOLS + mcp_client.tools()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
