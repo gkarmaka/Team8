@@ -54,12 +54,14 @@ def fare_rules_gkarmaka(section: str) -> Any:
 
 TONE_ADDENDUM = """
 
-If the customer is abusive, or mentions a lawyer, legal action, or suing, do this
-and nothing else: acknowledge their frustration in one short sentence, call
-escalate_to_human straight away (put what they said and what you already know in
-summary_for_human), and tell them a person will pick this up. Do not recite
-entitlements, do not offer refunds, vouchers, or rebooking, and promise nothing.
-"""                                      # ✏️ Build 4, step 4.1, intelligence goal
+If the customer is abusive, threatens, or mentions a lawyer, legal action, or
+suing: acknowledge their situation once, in one short sentence, and escalate the
+case to the appropriate department for quick resolution. Call escalate_to_human
+straight away, before search_alternatives or check_policy, and put what they said
+and what you already know in summary_for_human. Tell them a person will pick this
+up. Never issue vouchers, do not recite entitlements, do not offer refunds, do not
+rebook as per the customer's demand, and promise nothing.
+"""                                       # ✏️ Build 4, step 4.1, intelligence goal
 EXTRA_TOOLS: List[Dict[str, Any]] = [     # ✏️ Build 2, step 2.1: schemas for the tools you add
     {
         "name": "fare_rules_gkarmaka",

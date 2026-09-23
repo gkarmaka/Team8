@@ -7,8 +7,9 @@ Does : The sytem is identifying the cutsomer, checking the current status of the
 Number: $0.0504 per resolved contact
 Safety check: Wait for the customer confirmation before rebooking the seat
 Next: Escalate to human if no valid options
-Still broken: The seats are already available which can be booked instead of looking for next available day
-Lever: speed
+Still broken: The seats are already available which can be booked instead of looking for next available day. The voucher is offered. Didn't hold the seat. Invoked forbidden tool
+Lever: intelligence
+Lever (Gobinda Karmakar, gate 4.1): speed. p50 12.81s to 11.42s (-11%), cost $0.0611 to $0.0237 per contact, via prompt caching
 
 ## Priya asked
 

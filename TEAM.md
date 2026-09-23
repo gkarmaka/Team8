@@ -1,4 +1,4 @@
-# Team: <your team name>
+# Team: Team8
 
 Whoever made the repo types the team name above and one name per line below,
 then commits it once. Nobody else has to touch this file.
