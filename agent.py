@@ -13,8 +13,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List
 from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
-                     new_session, next_available_day, record_tool_result,
-                     runtime_preamble)
+                     new_session, record_tool_result, runtime_preamble)
 
 MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human takes over.
 
